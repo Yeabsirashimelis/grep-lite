@@ -1,10 +1,22 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader},
+    io::{stdin, BufRead, BufReader},
 };
 
 use clap::{App, Arg};
 use regex::Regex;
+
+fn process_lines<T: BufRead + Sized>(reader: T, re: Regex) {
+    for line_ in reader.lines() {
+        let line = line_.unwrap();
+
+        //line is a String, but re.find() takes an &str as an argument
+        match re.find(&line) {
+            Some(_) => println!("{}", line),
+            None => (),
+        }
+    }
+}
 
 fn main() {
     let args = App::new("grep-lite")
@@ -20,22 +32,22 @@ fn main() {
             Arg::with_name("input")
                 .help("file to search")
                 .takes_value(true)
-                .required(true),
+                .required(false),
         )
         .get_matches();
 
     let pattern = args.value_of("pattern").unwrap(); //extracts the pattern argument
     let re = Regex::new(pattern).unwrap();
 
-    let input = args.value_of("input").unwrap();
-    let f = File::open(input).unwrap();
-    let reader = BufReader::new(f);
+    let input = args.value_of("input").unwrap_or("-");
 
-    for line in reader.lines() {
-        let line = line.unwrap();
-        match re.find(&line) {
-            Some(_) => println!("{}", line),
-            None => (),
-        }
+    if input == "-" {
+        let stdin = stdin();
+        let reader = stdin.lock();
+        process_lines(reader, re);
+    } else {
+        let f = File::open(input).unwrap();
+        let reader = BufReader::new(f);
+        process_lines(reader, re);
     }
 }
